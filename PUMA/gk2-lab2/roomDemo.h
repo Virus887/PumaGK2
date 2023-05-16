@@ -26,9 +26,7 @@ namespace mini::gk2
 		static constexpr float MAPPER_FAR = 8.0f;
 
 		//can't have in-class initializer since XMFLOAT... types' constructors are not constexpr
-		static const DirectX::XMFLOAT3 TEAPOT_POS;
-		static const DirectX::XMFLOAT4 TABLE_POS;
-		static const DirectX::XMFLOAT4 LIGHT_POS[2];
+		static const DirectX::XMFLOAT4 LIGHT_POS[1];
 #pragma endregion
 		dx_ptr<ID3D11Buffer> m_cbWorldMtx, //vertex shader constant buffer slot 0
 			m_cbProjMtx,	//vertex shader constant buffer slot 2 & geometry shader constant buffer slot 0
@@ -44,8 +42,7 @@ namespace mini::gk2
 
 		dx_ptr<ID3D11Buffer> m_vbParticles;
 
-		DirectX::XMFLOAT4X4 m_projMtx, m_wallsMtx[6], m_sphereMtx, m_teapotMtx, m_boxMtx, m_lampMtx,
-			m_chairMtx, m_tableLegsMtx[4], m_tableTopMtx, m_tableSideMtx, m_monitorMtx, m_pumaMtx[6], m_plateMtx;
+		DirectX::XMFLOAT4X4 m_projMtx, m_wallsMtx[6], m_pumaMtx[6], m_plateMtx;
 
 		dx_ptr<ID3D11SamplerState> m_samplerWrap;
 
@@ -69,8 +66,6 @@ namespace mini::gk2
 		dx_ptr<ID3D11GeometryShader> m_particleGS;
 		dx_ptr<ID3D11PixelShader> m_phongPS, m_texturePS, m_colorTexPS, m_multiTexPS, m_particlePS;
 
-		EnvironmentMapper m_envMapper;
-
 		ParticleSystem m_particles;
 
 		void UpdateCameraCB(DirectX::XMMATRIX viewMtx);
@@ -89,7 +84,6 @@ namespace mini::gk2
 
 		void inverse_kinematics(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, float& a1, float& a2, float& a3, float& a4, float& a5);
 
-		void DrawWalls();
 		void DrawScene();
 	};
 }

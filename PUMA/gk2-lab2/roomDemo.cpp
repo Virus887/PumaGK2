@@ -8,9 +8,8 @@ using namespace gk2;
 using namespace DirectX;
 using namespace std;
 
-const XMFLOAT3 RoomDemo::TEAPOT_POS{ -1.3f, -0.74f, -0.6f };
-const XMFLOAT4 RoomDemo::TABLE_POS{ 0.5f, -0.96f, 0.5f, 1.0f };
-const XMFLOAT4 RoomDemo::LIGHT_POS[2] = { {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, -1.0f, -1.0f, 1.0f} };
+const float WALL_SIZE = 10.0f;
+const XMFLOAT4 RoomDemo::LIGHT_POS[1] = { {1.0f, 1.0f, 1.0f, 1.0f} };
 
 RoomDemo::RoomDemo(HINSTANCE appInstance)
 	: DxApplication(appInstance, 1280, 720, L"PUMA Bis Jedliczko"), 
@@ -27,8 +26,7 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	m_perlinTexture(m_device.CreateShaderResourceView(L"resources/textures/perlin.jpg")),
 	m_smokeTexture(m_device.CreateShaderResourceView(L"resources/textures/smoke.png")),
 	m_opacityTexture(m_device.CreateShaderResourceView(L"resources/textures/smokecolors.png")),
-	//EnvMapper
-	m_envMapper{ m_device, MAPPER_NEAR, MAPPER_FAR, TEAPOT_POS },
+	
 	//Particles
 	m_particles{ {-1.3f, -0.6f, -0.14f} }
 {
@@ -48,49 +46,11 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	sd.AddressU = sd.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
 	sd.BorderColor[0] = sd.BorderColor[1] = sd.BorderColor[2] = sd.BorderColor[3] = 0;
 	
-	// TODO : 1.10 Moddify MipLODBias field for the second sampler
-	sd.MipLODBias = 1;
-	m_sampler2 = m_device.CreateSamplerState(sd);
-
-	//Wood texture
-	constexpr auto woodTexWidth = 64U;
-	constexpr auto woodTexHeight = 64U;
-	constexpr auto woodTexBpp = 4U;
-	constexpr auto woodTexStride = woodTexWidth*woodTexBpp;
-	constexpr auto woodTexSize = woodTexStride*woodTexHeight;
-
-	auto texDesc = Texture2DDescription(woodTexWidth, woodTexHeight);
-	texDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
-	texDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-	auto woodTex = m_device.CreateTexture(texDesc);
-	m_woodTexture = m_device.CreateShaderResourceView(woodTex);
-
-	array<BYTE, woodTexSize> data;
-	auto d = data.data();
-	TextureGenerator txGen(6, 0.35f);
-	for (auto i = 0; i < woodTexHeight; ++i)
-	{
-		auto x = i / static_cast<float>(woodTexHeight);
-		for (auto j = 0; j < woodTexWidth; ++j)
-		{
-			auto y = j / static_cast<float>(woodTexWidth);
-			auto c = txGen.Wood(x, y);
-			auto ic = static_cast<BYTE>(c * 239);
-			*(d++) = ic;
-			ic = static_cast<BYTE>(c * 200);
-			*(d++) = ic;
-			ic = static_cast<BYTE>(c * 139);
-			*(d++) = ic;
-			*(d++) = 255;
-		}
-	}
-	m_device.context()->UpdateSubresource(woodTex.get(), 0, nullptr, data.data(), woodTexStride, woodTexSize);
-	m_device.context()->GenerateMips(m_woodTexture.get());
 
 	//Meshes
 	vector<VertexPositionNormal> vertices;
 	vector<unsigned short> indices;
-	m_wall = Mesh::Rectangle(m_device, 4.0f);
+	m_wall = Mesh::Rectangle(m_device, WALL_SIZE);
 	m_plate = Mesh::Rectangle(m_device, 2.0f);
 
 	for (int i = 0; i < 6; i++)
@@ -99,34 +59,18 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	m_vbParticles = m_device.CreateVertexBuffer<ParticleVertex>(ParticleSystem::MAX_PARTICLES);
 
 	//World matrix of all objects
-	auto temp = XMMatrixTranslation(0.0f, 0.0f, 2.0f);
+	auto temp = XMMatrixTranslation(0.0f, 0.0f, WALL_SIZE / 2);
 	auto a = 0.f;
 	for (auto i = 0U; i < 4U; ++i, a += XM_PIDIV2)
-		XMStoreFloat4x4(&m_wallsMtx[i], temp * XMMatrixRotationY(a));
-	XMStoreFloat4x4(&m_wallsMtx[4], temp * XMMatrixRotationX(XM_PIDIV2));
-	XMStoreFloat4x4(&m_wallsMtx[5], temp * XMMatrixRotationX(-XM_PIDIV2));
-	XMStoreFloat4x4(&m_teapotMtx, XMMatrixTranslation(0.0f, -2.3f, 0.f) * XMMatrixScaling(0.1f, 0.1f, 0.1f) *
-		XMMatrixRotationY(-XM_PIDIV2) * XMMatrixTranslation(-1.3f, -0.74f, -0.6f));
-	
-	XMStoreFloat4x4(&m_sphereMtx, XMMatrixRotationY(-XM_PIDIV2) * XMMatrixTranslation(TEAPOT_POS.x, TEAPOT_POS.y, TEAPOT_POS.z));
-	XMStoreFloat4x4(&m_boxMtx, XMMatrixTranslation(-1.4f, -1.46f, -0.6f));
+		XMStoreFloat4x4(&m_wallsMtx[i], temp * XMMatrixRotationY(a) * XMMatrixTranslation(0, WALL_SIZE/2 - 1, 0));
+	XMStoreFloat4x4(&m_wallsMtx[4], temp * XMMatrixRotationX(XM_PIDIV2) * XMMatrixTranslation(0, WALL_SIZE / 2 - 1, 0));
+	XMStoreFloat4x4(&m_wallsMtx[5], temp * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(0, WALL_SIZE / 2 - 1, 0));
+
 	XMStoreFloat4x4(&m_plateMtx, XMMatrixRotationX(XM_PIDIV4 / 2) * XMMatrixRotationY(-XM_PIDIV2) * XMMatrixTranslation(-1.7f, 0.0f, 0.0f));
 	
 	for (int i=0; i<6; i++)
 		XMStoreFloat4x4(&m_pumaMtx[i], XMMatrixIdentity());
 
-	XMStoreFloat4x4(&m_chairMtx, XMMatrixRotationY(XM_PI + XM_PI / 9 ) *
-		XMMatrixTranslation(-0.1f, -1.06f, -1.3f));
-	XMStoreFloat4x4(&m_monitorMtx, XMMatrixRotationY(XM_PIDIV4) *
-		XMMatrixTranslation(TABLE_POS.x, TABLE_POS.y + 0.42f, TABLE_POS.z));
-	a = XM_PIDIV4;
-	for (auto i = 0U; i < 4U; ++i, a += XM_PIDIV2)
-		XMStoreFloat4x4(&m_tableLegsMtx[i], XMMatrixTranslation(0.0f, 0.0f, TABLE_R - 0.35f) * XMMatrixRotationY(a) *
-			XMMatrixTranslation(TABLE_POS.x, TABLE_POS.y - (TABLE_H + TABLE_TOP_H) / 2, TABLE_POS.z));
-	XMStoreFloat4x4(&m_tableSideMtx, XMMatrixRotationY(XM_PIDIV4 / 4) *
-		XMMatrixTranslation(TABLE_POS.x, TABLE_POS.y - TABLE_TOP_H / 2, TABLE_POS.z));
-	XMStoreFloat4x4(&m_tableTopMtx, XMMatrixRotationY(XM_PIDIV4 / 4) *
-		XMMatrixTranslation(TABLE_POS.x, TABLE_POS.y, TABLE_POS.z));
 
 	//Constant buffers content
 	UpdateBuffer(m_cbLightPos, LIGHT_POS);
@@ -264,65 +208,7 @@ void RoomDemo::DrawParticles()
 	m_device.context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void RoomDemo::DrawWalls()
-{
-	//draw ceiling
-	XMFLOAT4X4 texMtx;
-	SetSurfaceColor(XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f));
-
-	// TODO : 0.02 calculate texture tranformation matrix for walls/ceiling/floor that transforms rectangle [-2,-2]x[2,2] into [0,0]x[1,1]
-	auto Matrix = DirectX::XMMatrixScaling(0.25, 0.25, 0.25) * DirectX::XMMatrixTranslation(0.5, 0.5, 0.5);
-	XMStoreFloat4x4(&texMtx, Matrix);
-	//XMStoreFloat4x4(&texMtx, XMMatrixIdentity());
-	//XMStoreFloat4x4(&texMtx, XMMatrixIdentity());
-	UpdateBuffer(m_cbTex1Mtx, texMtx);
-
-
-	// TODO : 0.03 set shaders to m_textureVS, m_texturePS
-	//SetShaders(m_textureVS, m_texturePS);
-	// TODO : 0.11 draw ceiling with colorTexture pixel shaders instead
-	//SetShaders(m_phongVS, m_phongPS);
-	SetShaders(m_textureVS, m_colorTexPS);
-
-	// TODO : 0.04 set ceiling the texture to perlin noise
-	SetTextures({m_perlinTexture.get()});
-
-	DrawMesh(m_wall, m_wallsMtx[5]);
-
-	//draw back wall
-	SetSurfaceColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
-	
-	// TODO : 1.04 Draw back wall with muliti-texture shaders, setting textures to wall and poster.
-	SetShaders(m_multiTexVS, m_multiTexPS);
-	SetTextures({m_wallTexture.get(),m_posterTexture.get()},m_sampler2);
-	// TODO : 1.07 Pass the new sampler state along with wall and poster textures
-
-	
-
-	// TODO : 0.12 draw back walls with regular texture shaders
-	//SetTextures({m})
-	
-	//SetShaders(m_textureVS, m_texturePS);
-	DrawMesh(m_wall, m_wallsMtx[0]);
-	// TODO : 0.05 set the walls' texture to brick wall 
-	SetTextures({ m_wallTexture.get() });
-	SetShaders(m_textureVS, m_texturePS);
-	//draw remainting walls
-	// TODO : 0.13 draw remaining walls with regular texture shaders
-	for (auto i = 1; i < 4; ++i)
-		DrawMesh(m_wall, m_wallsMtx[i]);
-
-	//draw floor
-	// TODO : 0.09 Change texture matrix to stretch floor texture 8 times along y, i.e. transform rectangle [-2,-2]x[2,2] into [0,0]x[1,16]. Run the program again to see the difference.
-	Matrix = DirectX::XMMatrixScaling(0.25, 4, 0.25) * DirectX::XMMatrixTranslation(0.5, 8.0, 0.5);
-	XMStoreFloat4x4(&texMtx, Matrix);
-	UpdateBuffer(m_cbTex1Mtx, texMtx);
-	// TODO : 0.06 set floor texture to wood
-	SetTextures({ m_woodTexture.get() });
-
-	DrawMesh(m_wall, m_wallsMtx[4]);
-}
-
+//TODO: refactor
 void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, float& a1, float& a2,
 	float& a3, float& a4, float& a5)
 {
@@ -370,11 +256,20 @@ void RoomDemo::UpdatePuma(float dt)
 
 void RoomDemo::DrawScene()
 {
-	DrawWalls();
 	SetShaders(m_phongVS, m_phongPS);
 
+	//draw walls
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.65f, 0.32f, 0.02f, 1.0f });
+	for (int i = 0; i < 6; i++)
+		DrawMesh(m_wall, m_wallsMtx[i]);
+
+	//draw puma
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.9f, 0.7f, 0.75f, 1.0f });
 	for (int i = 0; i < 6; i++)
 		DrawMesh(m_puma[i], m_pumaMtx[i]);
+
+	//drwa sheet plate
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.75f, 0.75f, 0.75f, 1.0f });
 
 	DrawMesh(m_plate, m_plateMtx);
 }
@@ -383,28 +278,6 @@ void RoomDemo::DrawScene()
 void RoomDemo::Render()
 {
 	Base::Render();
-	// TODO : 1.20 Change projection matrix to for drawing in environment cube
-	UpdateBuffer(m_cbProjMtx, m_envMapper.FaceProjMtx());
-	// TODO : 1.21 Set evnMapper render target
-	m_envMapper.SetTarget(m_device.context());
-	// TODO : 1.22 For each cube face: clear envMapper render target, update camera constant buffer, draw the scene and copy the result to cubemap
-	
-	for (int i = 0; i < 6; i++) 
-	{
-		m_envMapper.ClearTarget(m_device.context());
-		UpdateCameraCB(m_envMapper.FaceViewMtx(D3D11_TEXTURECUBE_FACE(i)));
-		DrawScene();
-		m_envMapper.SaveFace(m_device.context(), D3D11_TEXTURECUBE_FACE(i));
-	}
-
-
-	//wymyslone
-	//auto s = m_window.getClientSize();
-	//auto ar = static_cast<float>(s.cx) / s.cy;
-	//XMStoreFloat4x4(&m_projMtx, XMMatrixPerspectiveFovLH(XM_PIDIV4, ar, 0.01f, 100.0f));
-
-
-	ResetRenderTarget();
 	UpdateBuffer(m_cbProjMtx, m_projMtx);
 	UpdateCameraCB();
 	DrawScene();
