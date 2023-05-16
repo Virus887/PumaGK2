@@ -1,32 +1,12 @@
-# Prerequisites
-*.d
+﻿/motyl/Debug/*.exe
+Debug/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+/Puma/*.sdf
+/Puma/*.opendb
+*.user
+/Puma/*.sdf
+/Puma/Pokój.VC.opendb
+/Puma/.vs/Pokój/v14/*.suo
+/Puma/*.sdf
+*.sdf
+*.suo
