@@ -10,7 +10,7 @@ DxApplication::DxApplication(HINSTANCE hInstance, int wndWidth, int wndHeight, s
 	m_device(m_window), m_inputDevice(hInstance),
 	m_mouse(m_inputDevice.CreateMouseDevice(m_window.getHandle())),
 	m_keyboard(m_inputDevice.CreateKeyboardDevice(m_window.getHandle())),
-	m_camera(XMFLOAT3(0, 0, 0), 0.01f, 50.0f, 5), m_viewport{ m_window.getClientSize() }
+	m_camera(XMFLOAT3(0, 0, -3.0f)), m_viewport{ m_window.getClientSize() }
 {
 	ID3D11Texture2D *temp = nullptr;
 	auto hr = m_device.swapChain()->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&temp));
@@ -64,16 +64,65 @@ void mini::DxApplication::UpdateBuffer(const dx_ptr<ID3D11Buffer>& buffer, const
 
 bool DxApplication::HandleCameraInput(double dt)
 {
-	MouseState mstate;
-	if (!m_mouse.GetState(mstate))
-		return false;
-	auto d = mstate.getMousePositionChange();
-	if (mstate.isButtonDown(0))
-		m_camera.Rotate(d.y * ROTATION_SPEED, d.x * ROTATION_SPEED);
-	else if (mstate.isButtonDown(1))
-		m_camera.Zoom(d.y * ZOOM_SPEED);
-	else
-		return false;
+	// handle keyboard input
+	{
+		KeyboardState kState;
+		m_keyboard.GetState(kState);
+
+		float sensitivity = 3.0f;
+
+		int A = 30;
+		int D = 32;
+		int W = 17;
+		int S = 31;
+
+		int Ctrl = 57;
+		int Space = 29;
+
+		if (kState.isKeyDown(A))
+		{
+			m_camera.MoveTarget(m_camera.getRightDir() * -dt * sensitivity);
+		}
+		else if (kState.isKeyDown(D))
+		{
+			m_camera.MoveTarget(m_camera.getRightDir() * dt * sensitivity);
+		}
+		else if (kState.isKeyDown(W))
+		{
+			m_camera.MoveTarget(m_camera.getForwardDir() * dt * sensitivity);
+		}
+		else if (kState.isKeyDown(S))
+		{
+			m_camera.MoveTarget(m_camera.getForwardDir() * -dt * sensitivity);
+		}
+		if (kState.isKeyDown(Ctrl))
+		{
+			m_camera.MoveTarget(m_camera.getUpDir() * dt * sensitivity);
+		}
+		if (kState.isKeyDown(Space))
+		{
+			m_camera.MoveTarget(m_camera.getUpDir() * -dt * sensitivity);
+		}
+
+
+	}
+
+	//handle mouse input
+	{
+		MouseState mstate;
+		if (!m_mouse.GetState(mstate))
+			return false;
+
+		float sensitivity = 3.0f;
+
+		auto d = mstate.getMousePositionChange();
+		if (mstate.isButtonDown(0))
+			m_camera.Rotate(d.y * ROTATION_SPEED, d.x * ROTATION_SPEED);
+		else if (mstate.isButtonDown(1))
+			m_camera.Zoom(d.y * ZOOM_SPEED);
+		else
+			return false;
+	}
 	return true;
 }
 

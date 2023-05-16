@@ -48,6 +48,12 @@ XMVECTOR FPSCamera::getRightDir() const
 	return XMVector3TransformNormal(right, XMMatrixRotationY(getYAngle()));
 }
 
+XMVECTOR FPSCamera::getUpDir() const
+{
+	auto up = XMVectorSet(0, 1, 0, 0);
+	return XMVector3TransformNormal(up, XMMatrixRotationX(getXAngle()) * XMMatrixRotationY(getYAngle()));
+}
+
 void OrbitCamera::MoveTarget(FXMVECTOR v)
 {
 	auto pos = XMLoadFloat4(&m_target);

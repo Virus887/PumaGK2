@@ -58,5 +58,7 @@ namespace mini
 		DirectX::XMVECTOR getForwardDir() const;
 		/*Returns target's right direction parallel to ground (XZ) plane*/
 		DirectX::XMVECTOR getRightDir() const;
+		/*Returns target's up direction parallel to ground (XZ) plane*/
+		DirectX::XMVECTOR getUpDir() const;
 	};
 }

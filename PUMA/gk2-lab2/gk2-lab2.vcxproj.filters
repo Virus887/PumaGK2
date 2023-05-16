@@ -41,6 +41,12 @@
     <Filter Include="Source Files\dinput">
       <UniqueIdentifier>{dca2b2ae-edda-4f89-b2a4-d0046333c019}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\puma">
+      <UniqueIdentifier>{4f491ba5-db88-45ae-a13c-a541b66dc69e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\puma">
+      <UniqueIdentifier>{c722694a-c678-4f38-8869-b46b60c2301c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -102,6 +108,9 @@
     </ClCompile>
     <ClCompile Include="particleSystem.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cameraFps.cpp">
+      <Filter>Source Files\puma</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -176,6 +185,9 @@
     </ClInclude>
     <ClInclude Include="particleSystem.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cameraFps.h">
+      <Filter>Header Files\puma</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
