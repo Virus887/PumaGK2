@@ -13,7 +13,7 @@ const XMFLOAT4 RoomDemo::TABLE_POS{ 0.5f, -0.96f, 0.5f, 1.0f };
 const XMFLOAT4 RoomDemo::LIGHT_POS[2] = { {1.0f, 1.0f, 1.0f, 1.0f}, {-1.0f, -1.0f, -1.0f, 1.0f} };
 
 RoomDemo::RoomDemo(HINSTANCE appInstance)
-	: DxApplication(appInstance, 1280, 720, L"Pokój"), 
+	: DxApplication(appInstance, 1280, 720, L"PUMA Bis Jedliczko"), 
 	//Constant Buffers
 	m_cbWorldMtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
 	m_cbProjMtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()), m_cbTex1Mtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
@@ -91,17 +91,10 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	vector<VertexPositionNormal> vertices;
 	vector<unsigned short> indices;
 	m_wall = Mesh::Rectangle(m_device, 4.0f);
-	m_teapot = Mesh::LoadMesh(m_device, L"resources/meshes/teapot.mesh");
-	m_sphere = Mesh::Sphere(m_device, 8, 16, 0.3f);
-	m_box = Mesh::ShadedBox(m_device);
-	m_lamp = Mesh::LoadMesh(m_device, L"resources/meshes/lamp.mesh");
-	m_chairSeat = Mesh::LoadMesh(m_device, L"resources/meshes/chair_seat.mesh");
-	m_chairBack = Mesh::LoadMesh(m_device, L"resources/meshes/chair_back.mesh");
-	m_monitor = Mesh::LoadMesh(m_device, L"resources/meshes/monitor.mesh");
-	m_screen = Mesh::LoadMesh(m_device, L"resources/meshes/screen.mesh");
-	m_tableLeg = Mesh::Cylinder(m_device, 4, 9, TABLE_H - TABLE_TOP_H, 0.1f);
-	m_tableSide = Mesh::Cylinder(m_device, 1, 16, TABLE_TOP_H, TABLE_R);
-	m_tableTop = Mesh::Disk(m_device, 16, TABLE_R);
+	m_plate = Mesh::Rectangle(m_device, 2.0f);
+
+	for (int i = 0; i < 6; i++)
+		m_puma[i] = Mesh::LoadMesh(m_device, L"resources/robotMesh/mesh" + to_wstring(i + 1) + L".txt");
 
 	m_vbParticles = m_device.CreateVertexBuffer<ParticleVertex>(ParticleSystem::MAX_PARTICLES);
 
@@ -117,6 +110,11 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	
 	XMStoreFloat4x4(&m_sphereMtx, XMMatrixRotationY(-XM_PIDIV2) * XMMatrixTranslation(TEAPOT_POS.x, TEAPOT_POS.y, TEAPOT_POS.z));
 	XMStoreFloat4x4(&m_boxMtx, XMMatrixTranslation(-1.4f, -1.46f, -0.6f));
+	XMStoreFloat4x4(&m_plateMtx, XMMatrixRotationX(XM_PIDIV4 / 2) * XMMatrixRotationY(-XM_PIDIV2) * XMMatrixTranslation(-1.7f, 0.0f, 0.0f));
+	
+	for (int i=0; i<6; i++)
+		XMStoreFloat4x4(&m_pumaMtx[i], XMMatrixIdentity());
+
 	XMStoreFloat4x4(&m_chairMtx, XMMatrixRotationY(XM_PI + XM_PI / 9 ) *
 		XMMatrixTranslation(-0.1f, -1.06f, -1.3f));
 	XMStoreFloat4x4(&m_monitorMtx, XMMatrixRotationY(XM_PIDIV4) *
@@ -179,7 +177,7 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 
 	m_device.context()->IASetInputLayout(m_inputlayout.get());
 	m_device.context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	UpdateLamp(0.0f);
+	UpdatePuma(0.0f);
 
 	//We have to make sure all shaders use constant buffers in the same slots!
 	//Not all slots will be use by each shader
@@ -200,17 +198,6 @@ void RoomDemo::UpdateCameraCB(XMMATRIX viewMtx)
 	UpdateBuffer(m_cbViewMtx, view);
 }
 
-void RoomDemo::UpdateLamp(float dt)
-{
-	static auto time = 0.0f;
-	time += dt;
-	auto swing = 0.3f * XMScalarSin(XM_2PI*time / 8);
-	auto rot = XM_2PI*time / 20;
-	auto lamp = XMMatrixTranslation(0.0f, -0.4f, 0.0f) * XMMatrixRotationX(swing) * XMMatrixRotationY(rot) *
-		XMMatrixTranslation(0.0f, 2.0f, 0.0f);
-	XMStoreFloat4x4(&m_lampMtx, lamp);
-}
-
 void mini::gk2::RoomDemo::UpdateParticles(float dt)
 {
 	// TODO : 1.31 update particle system and copy vertex data to the buffer
@@ -222,7 +209,7 @@ void RoomDemo::Update(const Clock& c)
 {
 	double dt = c.getFrameTime();
 	HandleCameraInput(dt);
-	UpdateLamp(static_cast<float>(dt));
+	UpdatePuma(static_cast<float>(dt));
 	UpdateParticles(dt);
 }
 
@@ -336,130 +323,62 @@ void RoomDemo::DrawWalls()
 	DrawMesh(m_wall, m_wallsMtx[4]);
 }
 
-void RoomDemo::DrawTeapot()
+void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, float& a1, float& a2,
+	float& a3, float& a4, float& a5)
 {
-	// TODO : 1.25 Comment the following line and begin m_envMapper shaders instead
-	//SetShaders(m_phongVS, m_phongPS);
-	m_envMapper.Begin(m_device.context());
-	SetSurfaceColor(XMFLOAT4(0.8f, 0.7f, 0.65f, 1.0f));
+	float l1 = .91f, l2 = .81f, l3 = .33f, dy = .27f, dz = .26f;
+	XMStoreFloat3(&normal, XMVector3Normalize(XMLoadFloat3(&normal)));
+	XMFLOAT3 pos1;
+	XMStoreFloat3(&pos1, XMLoadFloat3(&pos) + XMLoadFloat3(&normal) * l3);
+	float e = sqrtf(pos1.z * pos1.z + pos1.x * pos1.x - dz * dz);
+	a1 = atan2(pos1.z, -pos1.x) + atan2(dz, e);
+	XMFLOAT3 pos2(e, pos1.y - dy, .0f);
+	a3 = -acosf(min(1.0f, (pos2.x * pos2.x + pos2.y * pos2.y - l1 * l1 - l2 * l2)
+		/ (2.0f * l1 * l2)));
+	float k = l1 + l2 * cosf(a3), l = l2 * sinf(a3);
+	a2 = -atan2(pos2.y, sqrtf(pos2.x * pos2.x + pos2.z * pos2.z)) - atan2(l, k);
+	XMFLOAT3 normal1;
+	XMStoreFloat3(&normal1, XMVector3Transform(XMLoadFloat3(&normal), XMMatrixRotationY(-a1) * XMMatrixRotationZ(-(a2 + a3))));
 
-	// TODO : 1.26 [optional] Comment the following line and uncomment the next to replace teapot with a sphere
-	DrawMesh(m_teapot, m_teapotMtx);
-	//DrawMesh(m_sphere, m_sphereMtx);
-
-	SetSurfaceColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	a5 = acosf(normal1.x);
+	a4 = atan2(normal1.z, normal1.y);
 }
 
-void RoomDemo::DrawTableElement(Mesh& m, DirectX::XMFLOAT4X4 worldMtx)
+
+
+float angle = 0;
+float period = 6;
+
+void RoomDemo::UpdatePuma(float dt)
 {
-	SetWorldMtx(worldMtx);
-	m_device.context()->RSSetState(m_rsCullFront.get());
-	m.Render(m_device.context());
-	m_device.context()->RSSetState(nullptr);
-	m.Render(m_device.context());
+	angle += dt / period * XM_2PI;
+	XMFLOAT4 pos(0.0f, 0.5f, 0.0f, 1.0f);
+	XMFLOAT4 normal(0.0f, 0.0f, -1.0f, 0.0f);
+	XMStoreFloat4(&pos, XMVector4Transform(XMLoadFloat4(&pos), XMMatrixRotationZ(angle) * XMLoadFloat4x4(&m_plateMtx)));
+	XMStoreFloat4(&normal, XMVector4Transform(XMLoadFloat4(&normal), XMLoadFloat4x4(&m_plateMtx)));
+
+	float a1, a2, a3, a4, a5;
+	inverse_kinematics({ pos.x, pos.y, pos.z }, { normal.x, normal.y, normal.z }, a1, a2, a3, a4, a5);
+
+	XMStoreFloat4x4(&m_pumaMtx[1], XMMatrixRotationY(a1));
+	XMStoreFloat4x4(&m_pumaMtx[2], XMMatrixTranslation(0.0f, -0.27f, 0.0f) * XMMatrixRotationZ(a2) * XMMatrixTranslation(0.0f, 0.27f, 0.0f) * XMLoadFloat4x4(&m_pumaMtx[1]));
+	XMStoreFloat4x4(&m_pumaMtx[3], XMMatrixTranslation(0.91f, -0.27f, 0.0f) * XMMatrixRotationZ(a3) * XMMatrixTranslation(-0.91f, 0.27f, 0.0f) * XMLoadFloat4x4(&m_pumaMtx[2]));
+	XMStoreFloat4x4(&m_pumaMtx[4], XMMatrixTranslation(0.0f, -0.27f, 0.26f) * XMMatrixRotationX(a4) * XMMatrixTranslation(0.0f, 0.27f, -0.26f) * XMLoadFloat4x4(&m_pumaMtx[3]));
+	XMStoreFloat4x4(&m_pumaMtx[5], XMMatrixTranslation(1.72f, -0.27f, 0.0f) * XMMatrixRotationZ(a5) * XMMatrixTranslation(-1.72f, 0.27f, 0.0f) * XMLoadFloat4x4(&m_pumaMtx[4]));
 }
 
-void RoomDemo::DrawTableLegs(XMVECTOR camVec)
-{
-	XMFLOAT4 v(1.0f, 0.0f, 0.0f, 0.0f);
-	auto plane1 = XMLoadFloat4(&v);
-	v = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-	auto plane2 = XMLoadFloat4(&v);
-	auto left = XMVector3Dot(camVec, plane1).m128_f32[0] > 0;
-	auto back = XMVector3Dot(camVec, plane2).m128_f32[0] > 0;
-	if (left)
-	{
-		if (back)
-		{
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[2]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[3]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[1]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[0]);
-		}
-		else
-		{
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[3]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[2]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[0]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[1]);
-		}
-	}
-	else
-	{
-
-		if (back)
-		{
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[1]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[0]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[2]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[3]);
-		}
-		else
-		{
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[0]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[1]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[3]);
-			DrawTableElement(m_tableLeg, m_tableLegsMtx[2]);
-		}
-	}
-}
-
-void RoomDemo::DrawTransparentObjects()
-{
-	m_device.context()->OMSetBlendState(m_bsAlpha.get(), nullptr, UINT_MAX);
-	m_device.context()->OMSetDepthStencilState(m_dssNoWrite.get(), 0);
-	SetSurfaceColor(XMFLOAT4(0.1f, 0.1f, 0.1f, 0.9f));
-	auto v = m_camera.getCameraPosition();
-	auto camVec = XMVector3Normalize(XMLoadFloat4(&v) - XMLoadFloat4(&TABLE_POS));
-	v = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-	auto plane = XMLoadFloat4(&v);
-	if (XMVector3Dot(camVec, plane).m128_f32[0] > 0)
-	{
-		SetShaders(m_phongVS, m_phongPS);
-		m_device.context()->RSSetState(m_rsCullFront.get());
-		DrawMesh(m_tableSide, m_tableSideMtx);
-		m_device.context()->RSSetState(nullptr);
-		DrawTableLegs(camVec);
-		DrawMesh(m_tableSide, m_tableSideMtx);
-		DrawTableElement(m_tableTop, m_tableTopMtx);
-		DrawParticles();
-	}
-	else
-	{
-		DrawParticles();
-		SetShaders(m_phongVS, m_phongPS);
-		DrawTableElement(m_tableTop, m_tableTopMtx);
-		m_device.context()->RSSetState(m_rsCullFront.get());
-		DrawMesh(m_tableSide, m_tableSideMtx);
-		m_device.context()->RSSetState(nullptr);
-		DrawTableLegs(camVec);
-		DrawMesh(m_tableSide, m_tableSideMtx);
-	}
-	SetSurfaceColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
-	m_device.context()->OMSetBlendState(nullptr, nullptr, UINT_MAX);
-	m_device.context()->OMSetDepthStencilState(nullptr, 0);
-}
 
 void RoomDemo::DrawScene()
 {
 	DrawWalls();
-	DrawTeapot();
 	SetShaders(m_phongVS, m_phongPS);
 
-	//Draw shelf
-	DrawMesh(m_box, m_boxMtx);
-	//Draw lamp
-	DrawMesh(m_lamp, m_lampMtx);
-	//Draw chair seat
-	DrawMesh(m_chairSeat, m_chairMtx);
-	//Draw chairframe
-	DrawMesh(m_chairBack, m_chairMtx);
-	//Draw monitor
-	DrawMesh(m_monitor, m_monitorMtx);
-	//Draw screen
-	DrawMesh(m_screen, m_monitorMtx);
-	DrawTransparentObjects();
+	for (int i = 0; i < 6; i++)
+		DrawMesh(m_puma[i], m_pumaMtx[i]);
+
+	DrawMesh(m_plate, m_plateMtx);
 }
+
 
 void RoomDemo::Render()
 {

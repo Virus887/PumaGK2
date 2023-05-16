@@ -38,22 +38,14 @@ namespace mini::gk2
 		dx_ptr<ID3D11Buffer> m_cbSurfaceColor;	//pixel shader constant buffer slot 0
 		dx_ptr<ID3D11Buffer> m_cbLightPos; //pixel shader constant buffer slot 1
 
+		Mesh m_puma[6]; //uses m_pumaMtx[6]
 		Mesh m_wall; //uses m_wallsMtx[6]
-		Mesh m_sphere; //uses m_sphereMtx
-		Mesh m_teapot; //uses m_tepotMtx
-		Mesh m_box; //uses m_boxMtx
-		Mesh m_lamp; //uses m_lampMtx
-		Mesh m_chairSeat; //uses m_chairMtx
-		Mesh m_chairBack; //uses m_chairMtx
-		Mesh m_tableLeg; //uses m_tableLegsMtx[4]
-		Mesh m_tableTop; //uses m_tableTopMtx
-		Mesh m_tableSide; //uses m_tableSideMtx
-		Mesh m_monitor; //uses m_monitorMtx
-		Mesh m_screen; //uses m_monitorMtx
+		Mesh m_plate; //uses m_wallsMtx[6]
+
 		dx_ptr<ID3D11Buffer> m_vbParticles;
 
 		DirectX::XMFLOAT4X4 m_projMtx, m_wallsMtx[6], m_sphereMtx, m_teapotMtx, m_boxMtx, m_lampMtx,
-			m_chairMtx, m_tableLegsMtx[4], m_tableTopMtx, m_tableSideMtx, m_monitorMtx;
+			m_chairMtx, m_tableLegsMtx[4], m_tableTopMtx, m_tableSideMtx, m_monitorMtx, m_pumaMtx[6], m_plateMtx;
 
 		dx_ptr<ID3D11SamplerState> m_samplerWrap;
 
@@ -83,8 +75,8 @@ namespace mini::gk2
 
 		void UpdateCameraCB(DirectX::XMMATRIX viewMtx);
 		void UpdateCameraCB() { UpdateCameraCB(m_camera.getViewMatrix()); }
-		void UpdateLamp(float dt);
 		void UpdateParticles(float dt);
+		void UpdatePuma(float dt);
 
 		void DrawMesh(const Mesh& m, DirectX::XMFLOAT4X4 worldMtx);
 		void DrawParticles();
@@ -95,11 +87,9 @@ namespace mini::gk2
 		void SetTextures(std::initializer_list<ID3D11ShaderResourceView*> resList, const dx_ptr<ID3D11SamplerState>& sampler);
 		void SetTextures(std::initializer_list<ID3D11ShaderResourceView*> resList) { SetTextures(std::move(resList), m_samplerWrap); }
 
+		void inverse_kinematics(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, float& a1, float& a2, float& a3, float& a4, float& a5);
+
 		void DrawWalls();
-		void DrawTeapot();
-		void DrawTableElement(Mesh& m, DirectX::XMFLOAT4X4 worldMtx);
-		void DrawTableLegs(DirectX::XMVECTOR camVec);
-		void DrawTransparentObjects();
 		void DrawScene();
 	};
 }

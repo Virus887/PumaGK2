@@ -47,6 +47,9 @@
     <Filter Include="Header Files\puma">
       <UniqueIdentifier>{c722694a-c678-4f38-8869-b46b60c2301c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\puma">
+      <UniqueIdentifier>{736db976-a234-457e-87b6-e71726078635}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
