@@ -10,3 +10,17 @@ Debug/
 /Puma/*.sdf
 *.sdf
 *.suo
+/PUMA/gk2-lab2/*.cso
+/PUMA/.vs/gk2-lab2
+/PUMA/gk2-lab2/texturedVS.cso
+/PUMA/gk2-lab2/texturedPS.cso
+/PUMA/gk2-lab2/phongVS.cso
+/PUMA/gk2-lab2/phongPS.cso
+/PUMA/gk2-lab2/particleVS.cso
+/PUMA/gk2-lab2/particlePS.cso
+/PUMA/gk2-lab2/particleGS.cso
+/PUMA/gk2-lab2/multiTexVS.cso
+/PUMA/gk2-lab2/multiTexPS.cso
+/PUMA/gk2-lab2/envMapVS.cso
+/PUMA/gk2-lab2/envMapPS.cso
+/PUMA/gk2-lab2/colorTexPS.cso
