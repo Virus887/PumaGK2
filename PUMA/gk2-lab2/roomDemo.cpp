@@ -21,8 +21,6 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	m_cbSurfaceColor(m_device.CreateConstantBuffer<XMFLOAT4>()),
 	m_cbLightPos(m_device.CreateConstantBuffer<XMFLOAT4, 2>()),
 	//Textures
-	m_wallTexture(m_device.CreateShaderResourceView(L"resources/textures/brick_wall.jpg")),
-	m_posterTexture(m_device.CreateShaderResourceView(L"resources/textures/lautrec_divan.jpg")),
 	m_perlinTexture(m_device.CreateShaderResourceView(L"resources/textures/perlin.jpg")),
 	m_smokeTexture(m_device.CreateShaderResourceView(L"resources/textures/smoke.png")),
 	m_opacityTexture(m_device.CreateShaderResourceView(L"resources/textures/smokecolors.png")),
@@ -98,18 +96,6 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	m_phongVS = m_device.CreateVertexShader(vsCode);
 	m_phongPS = m_device.CreatePixelShader(psCode);
 	m_inputlayout = m_device.CreateInputLayout(VertexPositionNormal::Layout, vsCode);
-
-	vsCode = m_device.LoadByteCode(L"texturedVS.cso");
-	psCode = m_device.LoadByteCode(L"texturedPS.cso");
-	m_textureVS = m_device.CreateVertexShader(vsCode);
-	m_texturePS = m_device.CreatePixelShader(psCode);
-	psCode = m_device.LoadByteCode(L"colorTexPS.cso");
-	m_colorTexPS = m_device.CreatePixelShader(psCode);
-
-	vsCode = m_device.LoadByteCode(L"multiTexVS.cso");
-	psCode = m_device.LoadByteCode(L"multiTexPS.cso");
-	m_multiTexVS = m_device.CreateVertexShader(vsCode);
-	m_multiTexPS = m_device.CreatePixelShader(psCode);
 
 	vsCode = m_device.LoadByteCode(L"particleVS.cso");
 	psCode = m_device.LoadByteCode(L"particlePS.cso");
@@ -209,15 +195,16 @@ void RoomDemo::DrawParticles()
 }
 
 //TODO: refactor
-void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, float& a1, float& a2,
-	float& a3, float& a4, float& a5)
+void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, float& a1, float& a2, float& a3, float& a4, float& a5)
 {
 	float l1 = .91f, l2 = .81f, l3 = .33f, dy = .27f, dz = .26f;
 	XMStoreFloat3(&normal, XMVector3Normalize(XMLoadFloat3(&normal)));
+
 	XMFLOAT3 pos1;
 	XMStoreFloat3(&pos1, XMLoadFloat3(&pos) + XMLoadFloat3(&normal) * l3);
 	float e = sqrtf(pos1.z * pos1.z + pos1.x * pos1.x - dz * dz);
 	a1 = atan2(pos1.z, -pos1.x) + atan2(dz, e);
+
 	XMFLOAT3 pos2(e, pos1.y - dy, .0f);
 	a3 = -acosf(min(1.0f, (pos2.x * pos2.x + pos2.y * pos2.y - l1 * l1 - l2 * l2)
 		/ (2.0f * l1 * l2)));
@@ -230,17 +217,13 @@ void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, floa
 	a4 = atan2(normal1.z, normal1.y);
 }
 
-
-
-float angle = 0;
-float period = 6;
-
 void RoomDemo::UpdatePuma(float dt)
 {
-	angle += dt / period * XM_2PI;
+	pumaAngle += XM_2PI * dt / pumaAnimationSpeed;
 	XMFLOAT4 pos(0.0f, 0.5f, 0.0f, 1.0f);
 	XMFLOAT4 normal(0.0f, 0.0f, -1.0f, 0.0f);
-	XMStoreFloat4(&pos, XMVector4Transform(XMLoadFloat4(&pos), XMMatrixRotationZ(angle) * XMLoadFloat4x4(&m_plateMtx)));
+
+	XMStoreFloat4(&pos, XMVector4Transform(XMLoadFloat4(&pos), XMMatrixRotationZ(pumaAngle) * XMLoadFloat4x4(&m_plateMtx)));
 	XMStoreFloat4(&normal, XMVector4Transform(XMLoadFloat4(&normal), XMLoadFloat4x4(&m_plateMtx)));
 
 	float a1, a2, a3, a4, a5;

@@ -25,6 +25,9 @@ namespace mini::gk2
 		static constexpr float MAPPER_NEAR = 0.4f;
 		static constexpr float MAPPER_FAR = 8.0f;
 
+		float pumaAngle = 0.0f;
+		float pumaAnimationSpeed = 4.0f;
+
 		//can't have in-class initializer since XMFLOAT... types' constructors are not constexpr
 		static const DirectX::XMFLOAT4 LIGHT_POS[1];
 #pragma endregion
@@ -49,10 +52,7 @@ namespace mini::gk2
 		// TODO : 1.05 Add second sampler state field
 		dx_ptr<ID3D11SamplerState> m_sampler2;
 
-		dx_ptr<ID3D11ShaderResourceView> m_wallTexture;
-		dx_ptr<ID3D11ShaderResourceView> m_posterTexture;
 		dx_ptr<ID3D11ShaderResourceView> m_perlinTexture;
-		dx_ptr<ID3D11ShaderResourceView> m_woodTexture;
 		dx_ptr<ID3D11ShaderResourceView> m_smokeTexture;
 		dx_ptr<ID3D11ShaderResourceView> m_opacityTexture;
 
@@ -62,9 +62,9 @@ namespace mini::gk2
 
 		dx_ptr<ID3D11InputLayout> m_inputlayout, m_particleLayout;
 
-		dx_ptr<ID3D11VertexShader> m_phongVS, m_textureVS, m_multiTexVS, m_particleVS;
+		dx_ptr<ID3D11VertexShader> m_phongVS, m_particleVS;
 		dx_ptr<ID3D11GeometryShader> m_particleGS;
-		dx_ptr<ID3D11PixelShader> m_phongPS, m_texturePS, m_colorTexPS, m_multiTexPS, m_particlePS;
+		dx_ptr<ID3D11PixelShader> m_phongPS, m_particlePS;
 
 		ParticleSystem m_particles;
 
