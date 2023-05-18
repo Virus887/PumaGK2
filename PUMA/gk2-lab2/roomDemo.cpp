@@ -249,7 +249,7 @@ void RoomDemo::UpdatePuma(float dt)
 void RoomDemo::DrawScene()
 {
 	//drwa sheet plate
-	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.75f, 0.75f, 0.75f, 1.0f });
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.25f, 0.25f, 0.25f, 1.0f });
 	m_device.context()->OMSetBlendState(m_bsAlpha.get(), nullptr, 0xffffffff);
 	DrawMesh(m_plate, m_plateMtx);
 	m_device.context()->OMSetBlendState(nullptr, nullptr, 0xffffffff);
