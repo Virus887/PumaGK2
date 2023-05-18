@@ -45,7 +45,7 @@ namespace mini::gk2
 
 		dx_ptr<ID3D11Buffer> m_vbParticles;
 
-		DirectX::XMFLOAT4X4 m_projMtx, m_wallsMtx[6], m_pumaMtx[6], m_plateMtx;
+		DirectX::XMFLOAT4X4 m_projMtx, m_wallsMtx[6], m_pumaMtx[6], m_plateMtx, m_mirroredPlateMtx;
 
 		dx_ptr<ID3D11SamplerState> m_samplerWrap;
 
@@ -66,6 +66,17 @@ namespace mini::gk2
 		dx_ptr<ID3D11GeometryShader> m_particleGS;
 		dx_ptr<ID3D11PixelShader> m_phongPS, m_particlePS;
 
+
+		//Zabawa STENCILEM
+		//Depth stencil state used to fill the stencil buffer
+		dx_ptr<ID3D11DepthStencilState> m_dssStencilWrite;
+		//Depth stencil state used to perform stencil test when drawing mirrored scene
+		dx_ptr<ID3D11DepthStencilState> m_dssStencilTest;
+		//Rasterizer state used to define front faces as counter-clockwise, used when drawing mirrored scene
+		dx_ptr<ID3D11RasterizerState> m_rsCCW;
+		//Blend state used to draw PLATE faced with alpha blending.
+		//dx_ptr<ID3D11BlendState> m_bsAlpha;
+
 		ParticleSystem m_particles;
 
 		void UpdateCameraCB(DirectX::XMMATRIX viewMtx);
@@ -85,5 +96,7 @@ namespace mini::gk2
 		void inverse_kinematics(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, float& a1, float& a2, float& a3, float& a4, float& a5);
 
 		void DrawScene();
+		void DrawMirroredWorld();	//a tu sie ladnie odbicie zrobi
+		void CreateRenderStates(); //te wszystkie stencil writy i testy c'nie
 	};
 }

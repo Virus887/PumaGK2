@@ -69,6 +69,11 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	for (int i=0; i<6; i++)
 		XMStoreFloat4x4(&m_pumaMtx[i], XMMatrixIdentity());
 
+	//Calculate and store matrix for mirrored plate
+	XMMATRIX plateMtx = XMLoadFloat4x4(&m_plateMtx);
+	XMMATRIX mirrorPlateMtx = XMMatrixInverse(nullptr, plateMtx) *
+		XMMatrixScaling(1, 1, -1) * plateMtx;
+	XMStoreFloat4x4(&m_mirroredPlateMtx, mirrorPlateMtx);
 
 	//Constant buffers content
 	UpdateBuffer(m_cbLightPos, LIGHT_POS);
@@ -107,6 +112,10 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 
 	m_device.context()->IASetInputLayout(m_inputlayout.get());
 	m_device.context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	//Nie wiem czy używasz do czegoś tych RenderState powyżej, ale ja zainicjalizuję tutaj swoje
+	CreateRenderStates();
+
 	UpdatePuma(0.0f);
 
 	//We have to make sure all shaders use constant buffers in the same slots!
@@ -239,7 +248,11 @@ void RoomDemo::UpdatePuma(float dt)
 
 void RoomDemo::DrawScene()
 {
-	SetShaders(m_phongVS, m_phongPS);
+	//drwa sheet plate
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.75f, 0.75f, 0.75f, 1.0f });
+	m_device.context()->OMSetBlendState(m_bsAlpha.get(), nullptr, 0xffffffff);
+	DrawMesh(m_plate, m_plateMtx);
+	m_device.context()->OMSetBlendState(nullptr, nullptr, 0xffffffff);
 
 	//draw walls
 	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.65f, 0.32f, 0.02f, 1.0f });
@@ -251,17 +264,89 @@ void RoomDemo::DrawScene()
 	for (int i = 0; i < 6; i++)
 		DrawMesh(m_puma[i], m_pumaMtx[i]);
 
-	//drwa sheet plate
-	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.75f, 0.75f, 0.75f, 1.0f });
-
-	DrawMesh(m_plate, m_plateMtx);
 }
 
 
 void RoomDemo::Render()
 {
 	Base::Render();
+	SetShaders(m_phongVS, m_phongPS);
 	UpdateBuffer(m_cbProjMtx, m_projMtx);
 	UpdateCameraCB();
+	DrawMirroredWorld();
 	DrawScene();
+}
+
+void RoomDemo::DrawMirroredWorld() 
+{
+	//najpierw zapiszemy do stencila ktora powierzchnia ma odbijać
+	m_device.context()->OMSetDepthStencilState(m_dssStencilWrite.get(), 1);
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.75f, 0.75f, 0.75f, 1.0f });
+	//DrawMesh(m_plate, m_plateMtx);
+	UpdateBuffer(m_cbWorldMtx, m_plateMtx);
+	m_plate.Render(m_device.context());
+
+	//teraz stencil jest ustawiony na testowanie i narysujemy odbicie na powierzchni
+	m_device.context()->OMSetDepthStencilState(m_dssStencilTest.get(), 1);
+	m_device.context()->RSSetState(m_rsCCW.get());
+	XMMATRIX NewView = XMLoadFloat4x4(&m_mirroredPlateMtx) * m_camera.getViewMatrix();
+	UpdateCameraCB(NewView);
+	m_device.context()->RSSetState(m_rsCCW.get());
+	//draw sheet plate
+	//UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 1.f, 0.f, 0.f, 1.0f });
+	//DrawMesh(m_plate, m_plateMtx);
+
+	//draw walls
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.65f, 0.32f, 0.02f, 1.0f });
+	for (int i = 0; i < 6; i++)
+		DrawMesh(m_wall, m_wallsMtx[i]);
+
+	//draw puma
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 0.9f, 0.7f, 0.75f, 1.0f });
+	for (int i = 0; i < 6; i++)
+		DrawMesh(m_puma[i], m_pumaMtx[i]);
+
+	
+	//ustaw stencila na default
+	m_device.context()->OMSetDepthStencilState(nullptr, 1);
+	m_device.context()->RSSetState(nullptr);
+	//ustaw kamere na defalut
+	UpdateCameraCB(m_camera.getViewMatrix());
+}
+
+void RoomDemo::CreateRenderStates() 
+{
+	DepthStencilDescription dssDesc;
+
+	//Setup depth stencil state for writing to stencil buffer
+	dssDesc.DepthEnable = false;
+	dssDesc.StencilEnable = true;
+	dssDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	dssDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+	m_dssStencilWrite = m_device.CreateDepthStencilState(dssDesc);
+
+	//Setup depth stencil state for stencil test for 3D objects
+	dssDesc.DepthEnable = true;
+	dssDesc.StencilEnable = true;
+	dssDesc.FrontFace.StencilFunc = D3D11_COMPARISON_EQUAL;		//przejdzie jeśli numerek się zgadza
+	dssDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;	//nie zmieniamy numerka ściany
+	dssDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	m_dssStencilTest = m_device.CreateDepthStencilState(dssDesc);
+
+	//Setup rasterizer state with ccw front faces
+	RasterizerDescription rsDesc;
+	rsDesc.FrontCounterClockwise = true;
+	m_rsCCW = m_device.CreateRasterizerState(rsDesc);
+
+	BlendDescription bsDesc;
+	//Setup alpha blending state
+	bsDesc.RenderTarget->BlendEnable = true;
+	bsDesc.RenderTarget->SrcBlend = D3D11_BLEND_DEST_COLOR;
+	bsDesc.RenderTarget->DestBlend = D3D11_BLEND_INV_DEST_ALPHA;
+	bsDesc.RenderTarget->BlendOp = D3D11_BLEND_OP_ADD;
+	bsDesc.RenderTarget->SrcBlendAlpha = D3D11_BLEND_ONE;
+	bsDesc.RenderTarget->DestBlendAlpha = D3D11_BLEND_ZERO;
+	bsDesc.RenderTarget->BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	bsDesc.RenderTarget->RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	m_bsAlpha = m_device.CreateBlendState(bsDesc);
 }
