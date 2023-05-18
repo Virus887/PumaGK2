@@ -25,7 +25,7 @@ float4 main(PSInput i) : SV_TARGET
 	float3 viewVec = normalize(i.viewVec);
 	float3 normal = normalize(i.norm);
 	float3 color = surfaceColor.rgb * ambientColor;
-	for (int k = 0; k < 2; k++)
+	for (int k = 0; k < 2; k++) 
 	{
 		float3 lightPosition = lightPos[k].xyz;
 		float3 lightVec = normalize(lightPosition - i.worldPos);

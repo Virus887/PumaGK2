@@ -58,12 +58,15 @@ void OrbitCamera::MoveTarget(FXMVECTOR v)
 {
 	auto pos = XMLoadFloat4(&m_target);
 	pos = pos + v;
-	XMStoreFloat4(&m_target, pos);
+	XMStoreFloat4(&m_target, pos); 
 }
 
 void OrbitCamera::Rotate(float dx, float dy)
 {
-	m_angleX = XMScalarModAngle(m_angleX + dx);
+	m_angleX += dx;
+	if (m_angleX < -XM_PIDIV2) { m_angleX = -XM_PIDIV2; }
+	if (m_angleX > XM_PIDIV2) { m_angleX = XM_PIDIV2; }
+
 	m_angleY = XMScalarModAngle(m_angleY + dy);
 }
 
