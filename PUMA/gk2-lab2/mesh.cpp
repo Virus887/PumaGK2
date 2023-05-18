@@ -398,7 +398,6 @@ std::vector<unsigned short> mini::Mesh::DiskIdx(unsigned int slices)
 
 Mesh mini::Mesh::LoadMesh(const DxDevice& device, const std::wstring& meshPath)
 {
-	// TODO : Refactor
 	//File format for VN vertices and IN indices (IN divisible by 3, i.e. IN/3 triangles):
 	//VN IN
 	//pos.x pos.y pos.z norm.x norm.y norm.z tex.x tex.y [VN times, i.e. for each vertex]
@@ -412,31 +411,27 @@ Mesh mini::Mesh::LoadMesh(const DxDevice& device, const std::wstring& meshPath)
 	input.exceptions(ios::badbit | ios::failbit | ios::eofbit);
 	input.open(meshPath);
 
-	int pn;
-	input >> pn;
-
-	vector<XMFLOAT3> posverts(pn);
-	for (auto i = 0; i < pn; ++i)
+	int verts_count;
+	input >> verts_count;
+	vector<XMFLOAT3> posverts(verts_count);
+	for (auto i = 0; i < verts_count; ++i)
 		input >> posverts[i].x >> posverts[i].y >> posverts[i].z;
 
-	int vn;
-	input >> vn;
-
-	vector<VertexPositionNormal> verts(vn);
-	for (auto i = 0; i < vn; ++i)
+	int normals_count;
+	input >> normals_count;
+	vector<VertexPositionNormal> verts(normals_count);
+	for (auto i = 0; i < normals_count; ++i)
 	{
-		int posindex;
-		input >> posindex;
-
-		verts[i].position = posverts[posindex];
-
+		int idx;
+		input >> idx;
+		verts[i].position = posverts[idx];
 		input >> verts[i].normal.x >> verts[i].normal.y >> verts[i].normal.z;
 	}
 
-	int in;
-	input >> in;
-	vector<unsigned short> inds(3 * in);
-	for (auto i = 0; i < 3 * in; ++i)
+	int indices_count;
+	input >> indices_count;
+	vector<unsigned short> inds(3 * indices_count);
+	for (auto i = 0; i < 3 * indices_count; ++i)
 		input >> inds[i];
 
 	return SimpleTriMesh(device, verts, inds);

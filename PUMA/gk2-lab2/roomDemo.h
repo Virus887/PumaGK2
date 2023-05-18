@@ -29,7 +29,7 @@ namespace mini::gk2
 		float pumaAnimationSpeed = 4.0f;
 
 		//can't have in-class initializer since XMFLOAT... types' constructors are not constexpr
-		static const DirectX::XMFLOAT4 LIGHT_POS[1];
+		static const DirectX::XMFLOAT4 LIGHT_POS[1]; 
 #pragma endregion
 		dx_ptr<ID3D11Buffer> m_cbWorldMtx, //vertex shader constant buffer slot 0
 			m_cbProjMtx,	//vertex shader constant buffer slot 2 & geometry shader constant buffer slot 0
@@ -38,6 +38,7 @@ namespace mini::gk2
 		dx_ptr<ID3D11Buffer> m_cbViewMtx; //vertex shader constant buffer slot 1
 		dx_ptr<ID3D11Buffer> m_cbSurfaceColor;	//pixel shader constant buffer slot 0
 		dx_ptr<ID3D11Buffer> m_cbLightPos; //pixel shader constant buffer slot 1
+		dx_ptr<ID3D11Buffer> m_cbMapMtx; //pixel shader constant buffer slot 2
 
 		Mesh m_puma[6]; //uses m_pumaMtx[6]
 		Mesh m_wall; //uses m_wallsMtx[6]
@@ -49,15 +50,12 @@ namespace mini::gk2
 
 		dx_ptr<ID3D11SamplerState> m_samplerWrap;
 
-		// TODO : 1.05 Add second sampler state field
-		dx_ptr<ID3D11SamplerState> m_sampler2;
-
-		dx_ptr<ID3D11ShaderResourceView> m_perlinTexture;
-		dx_ptr<ID3D11ShaderResourceView> m_smokeTexture;
+		dx_ptr<ID3D11ShaderResourceView> m_particleTexture;
 		dx_ptr<ID3D11ShaderResourceView> m_opacityTexture;
 
 		dx_ptr<ID3D11RasterizerState> m_rsCullFront;
 		dx_ptr<ID3D11BlendState> m_bsAlpha;
+		dx_ptr<ID3D11BlendState> m_bsAlphaParticles;
 		dx_ptr<ID3D11DepthStencilState> m_dssNoWrite;
 
 		dx_ptr<ID3D11InputLayout> m_inputlayout, m_particleLayout;
@@ -74,6 +72,7 @@ namespace mini::gk2
 		dx_ptr<ID3D11DepthStencilState> m_dssStencilTest;
 		//Rasterizer state used to define front faces as counter-clockwise, used when drawing mirrored scene
 		dx_ptr<ID3D11RasterizerState> m_rsCCW;
+		dx_ptr<ID3D11DepthStencilState> m_dssNoWriteParticles;
 		//Blend state used to draw PLATE faced with alpha blending.
 		//dx_ptr<ID3D11BlendState> m_bsAlpha;
 
@@ -82,6 +81,7 @@ namespace mini::gk2
 		void UpdateCameraCB(DirectX::XMMATRIX viewMtx);
 		void UpdateCameraCB() { UpdateCameraCB(m_camera.getViewMatrix()); }
 		void UpdateParticles(float dt);
+		void UpdateParticleEmitter();
 		void UpdatePuma(float dt);
 
 		void DrawMesh(const Mesh& m, DirectX::XMFLOAT4X4 worldMtx);

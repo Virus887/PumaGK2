@@ -9,24 +9,26 @@ using namespace DirectX;
 using namespace std;
 
 const float WALL_SIZE = 10.0f;
-const XMFLOAT4 RoomDemo::LIGHT_POS[1] = { {1.0f, 1.0f, 1.0f, 1.0f} };
+const XMFLOAT4 RoomDemo::LIGHT_POS[1] = {{1.0f, 1.0f, 1.0f, 1.0f}};
 
 RoomDemo::RoomDemo(HINSTANCE appInstance)
-	: DxApplication(appInstance, 1280, 720, L"PUMA Bis Jedliczko"), 
+	: DxApplication(appInstance, 1280, 720, L"PUMA"), 
 	//Constant Buffers
 	m_cbWorldMtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
-	m_cbProjMtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()), m_cbTex1Mtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
-	m_cbTex2Mtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
+	m_cbProjMtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
 	m_cbViewMtx(m_device.CreateConstantBuffer<XMFLOAT4X4, 2>()),
 	m_cbSurfaceColor(m_device.CreateConstantBuffer<XMFLOAT4>()),
 	m_cbLightPos(m_device.CreateConstantBuffer<XMFLOAT4, 2>()),
+	m_cbTex1Mtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
+	m_cbTex2Mtx(m_device.CreateConstantBuffer<XMFLOAT4X4>()),
+
 	//Textures
-	m_perlinTexture(m_device.CreateShaderResourceView(L"resources/textures/perlin.jpg")),
-	m_smokeTexture(m_device.CreateShaderResourceView(L"resources/textures/smoke.png")),
-	m_opacityTexture(m_device.CreateShaderResourceView(L"resources/textures/smokecolors.png")),
-	
+	m_particleTexture(m_device.CreateShaderResourceView(L"resources/textures/particle2.png")),
+	m_opacityTexture(m_device.CreateShaderResourceView(L"resources/textures/opacityMap.png")),
+
+
 	//Particles
-	m_particles{ {-1.3f, -0.6f, -0.14f} }
+	m_particles{ {0.0f, -0.0f, -0.0f} }
 {
 	//Projection matrix
 	auto s = m_window.getClientSize();
@@ -34,16 +36,6 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	XMStoreFloat4x4(&m_projMtx, XMMatrixPerspectiveFovLH(XM_PIDIV4, ar, 0.01f, 100.0f));
 	UpdateBuffer(m_cbProjMtx, m_projMtx);
 	UpdateCameraCB();
-
-	//Sampler States
-	SamplerDescription sd;
-	// TODO : 0.01 Set to proper addressing (wrap) and filtering (16x anisotropic) modes of the sampler
-	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP; sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP; sd.Filter = D3D11_FILTER_ANISOTROPIC; sd.MaxAnisotropy = 16;
-	m_samplerWrap = m_device.CreateSamplerState(sd);
-	// TODO : 1.06 Initialize second sampler state
-	sd.AddressU = sd.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-	sd.BorderColor[0] = sd.BorderColor[1] = sd.BorderColor[2] = sd.BorderColor[3] = 0;
-	
 
 	//Meshes
 	vector<VertexPositionNormal> vertices;
@@ -77,13 +69,13 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 
 	//Constant buffers content
 	UpdateBuffer(m_cbLightPos, LIGHT_POS);
+	UpdateBuffer(m_cbSurfaceColor, XMFLOAT4{ 1.0f, 1.0f, 1.0f, 1.0f });
 	XMFLOAT4X4 tempMtx;
 
-	// TODO : 1.08 Calculate correct transformation matrix for the poster texture
-	
+
 	XMStoreFloat4x4(&tempMtx, XMMatrixTranslation(0.8f, 0.0f, 0.0f)* XMMatrixRotationZ(- XM_PI/9)* XMMatrixScaling(1.0f, -0.75f, 1.0f)*XMMatrixTranslation(0.5f, 0.5f, 0.0f));
 	//XMStoreFloat4x4(&tempMtx, XMMatrixIdentity());
-	
+
 	UpdateBuffer(m_cbTex2Mtx, tempMtx);
 
 	//Render states
@@ -91,10 +83,21 @@ RoomDemo::RoomDemo(HINSTANCE appInstance)
 	rsDesc.CullMode = D3D11_CULL_FRONT;
 	m_rsCullFront = m_device.CreateRasterizerState(rsDesc);
 
+	//Render states
 	m_bsAlpha = m_device.CreateBlendState(BlendDescription::AlphaBlendDescription());
+	m_bsAlphaParticles = m_device.CreateBlendState(BlendDescription::AlphaBlendDescription());
 	DepthStencilDescription dssDesc;
 	dssDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 	m_dssNoWrite = m_device.CreateDepthStencilState(dssDesc);
+
+	DepthStencilDescription dssDesc2;
+	dssDesc2.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	dssDesc2.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	dssDesc2.FrontFace.StencilFunc = D3D11_COMPARISON_EQUAL;
+	dssDesc2.BackFace.StencilFunc = D3D11_COMPARISON_NEVER;
+	dssDesc2.StencilEnable = true;
+
+	m_dssNoWriteParticles = m_device.CreateDepthStencilState(dssDesc2);
 
 	auto vsCode = m_device.LoadByteCode(L"phongVS.cso");
 	auto psCode = m_device.LoadByteCode(L"phongPS.cso");
@@ -150,6 +153,7 @@ void RoomDemo::Update(const Clock& c)
 	HandleCameraInput(dt);
 	UpdatePuma(static_cast<float>(dt));
 	UpdateParticles(dt);
+	UpdateParticleEmitter();
 }
 
 void RoomDemo::SetWorldMtx(DirectX::XMFLOAT4X4 mtx)
@@ -186,7 +190,7 @@ void RoomDemo::DrawParticles()
 	if (m_particles.particlesCount() == 0)
 		return;
 	//Set input layout, primitive topology, shaders, vertex buffer, and draw particles
-	SetTextures({ m_smokeTexture.get(), m_opacityTexture.get() });
+	SetTextures({ m_particleTexture.get(), m_particleTexture.get() });
 	m_device.context()->IASetInputLayout(m_particleLayout.get());
 	SetShaders(m_particleVS, m_particlePS);
 	m_device.context()->GSSetShader(m_particleGS.get(), nullptr, 0);
@@ -203,7 +207,6 @@ void RoomDemo::DrawParticles()
 	m_device.context()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-//TODO: refactor
 void mini::gk2::RoomDemo::inverse_kinematics(XMFLOAT3 pos, XMFLOAT3 normal, float& a1, float& a2, float& a3, float& a4, float& a5)
 {
 	float l1 = .91f, l2 = .81f, l3 = .33f, dy = .27f, dz = .26f;
@@ -245,6 +248,17 @@ void RoomDemo::UpdatePuma(float dt)
 	XMStoreFloat4x4(&m_pumaMtx[5], XMMatrixTranslation(1.72f, -0.27f, 0.0f) * XMMatrixRotationZ(a5) * XMMatrixTranslation(-1.72f, 0.27f, 0.0f) * XMLoadFloat4x4(&m_pumaMtx[4]));
 }
 
+void mini::gk2::RoomDemo::UpdateParticleEmitter()
+{
+	XMFLOAT4 pos(0.0f, 0.0f, 0.0f, 1.0f);
+	XMStoreFloat4(&pos, XMVector4Transform(XMLoadFloat4(&pos), XMMatrixTranslation(-2.05f, 0.27f, -0.26f) * XMLoadFloat4x4(&m_pumaMtx[5])));
+
+	XMFLOAT4 normal(0.0f, 0.0f, -1.0f, 0.0f);
+	XMStoreFloat4(&normal, XMVector4Transform(XMLoadFloat4(&normal), XMLoadFloat4x4(&m_plateMtx)));
+
+	m_particles.SetEmitterPos({ pos.x, pos.y, pos.z });
+	m_particles.SetEmitterDir({ normal.x, normal.y, normal.z });
+}
 
 void RoomDemo::DrawScene()
 {
@@ -264,6 +278,12 @@ void RoomDemo::DrawScene()
 	for (int i = 0; i < 6; i++)
 		DrawMesh(m_puma[i], m_pumaMtx[i]);
 
+	//Draw particles with blend
+	m_device.context()->OMSetBlendState(m_bsAlphaParticles.get(), nullptr, UINT_MAX);
+	m_device.context()->OMSetDepthStencilState(m_dssNoWrite.get(), 0);
+	DrawParticles();
+	m_device.context()->OMSetBlendState(nullptr, nullptr, UINT_MAX);
+	m_device.context()->OMSetDepthStencilState(nullptr, 0);
 }
 
 
@@ -306,7 +326,18 @@ void RoomDemo::DrawMirroredWorld()
 	for (int i = 0; i < 6; i++)
 		DrawMesh(m_puma[i], m_pumaMtx[i]);
 
-	
+	//////////////////////////////
+
+	m_device.context()->RSSetState(nullptr);
+	m_device.context()->OMSetDepthStencilState(m_dssNoWriteParticles.get(), 1);
+	m_device.context()->OMSetBlendState(m_bsAlphaParticles.get(), nullptr, UINT_MAX);
+	DrawParticles();
+	SetShaders(m_phongVS, m_phongPS);
+	m_device.context()->OMSetBlendState(nullptr, nullptr, UINT_MAX);
+
+
+	////////////////////////////////////////////////
+
 	//ustaw stencila na default
 	m_device.context()->OMSetDepthStencilState(nullptr, 1);
 	m_device.context()->RSSetState(nullptr);

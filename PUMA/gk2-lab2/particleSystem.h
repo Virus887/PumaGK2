@@ -10,21 +10,20 @@ namespace mini
 	{
 		struct ParticleVertex
 		{
+			DirectX::XMFLOAT3 PrevPos;
 			DirectX::XMFLOAT3 Pos;
 			float Age;
-			float Angle;
 			float Size;
 			static const D3D11_INPUT_ELEMENT_DESC Layout[4];
 
-			ParticleVertex() : Pos(0.0f, 0.0f, 0.0f), Age(0.0f), Angle(0.0f), Size(0.0f) { }
+			ParticleVertex() : PrevPos(0.0f, 0.0f, 0.0f), Pos(0.0f, 0.0f, 0.0f), Age(0.0f), Size(0.0f) { }
 		};
 
 		struct ParticleVelocities
 		{
 			DirectX::XMFLOAT3 Velocity;
-			float AngularVelocity;
 
-			ParticleVelocities() : Velocity(0.0f, 0.0f, 0.0f), AngularVelocity(0.0f) { }
+			ParticleVelocities() : Velocity(0.0f, 0.0f, 0.0f) { }
 		};
 
 		struct Particle
@@ -47,28 +46,37 @@ namespace mini
 			std::vector<ParticleVertex> Update(float dt, DirectX::XMFLOAT4 cameraPosition);
 
 			size_t particlesCount() const { return m_particles.size(); }
+
 			static const int MAX_PARTICLES;		//maximal number of particles in the system
+			static const float TIME_TO_LIVE;	//time of particle's life in seconds
+
+			void SetEmitterPos(DirectX::XMFLOAT3 pos) { m_emitterPos = pos; };
+			void SetEmitterDir(DirectX::XMFLOAT3 dir) { m_emitterDir = dir; };
+
 
 		private:
 			static const DirectX::XMFLOAT3 EMITTER_DIR;	//mean direction of particles' velocity
-			static const float TIME_TO_LIVE;	//time of particle's life in seconds
 			static const float EMISSION_RATE;	//number of particles to be born per second
 			static const float MAX_ANGLE;		//maximal angle declination from mean direction
-			static const float MIN_VELOCITY;	//minimal value of particle's velocity
-			static const float MAX_VELOCITY;	//maximal value of particle's velocity
-			static const float PARTICLE_SIZE;	//initial size of a particle
-			static const float PARTICLE_SCALE;	//size += size*scale*dtime
-			static const float MIN_ANGLE_VEL;	//minimal rotation speed
-			static const float MAX_ANGLE_VEL;	//maximal rotation speed
+			static const float MIN_SIZE;	//minimal particle size
+			static const float MAX_SIZE;	//maximal particle size
+
+			static const float MIN_VELOCITY, MAX_VELOCITY;
+
+			static const float MIN_DIR, MAX_DIR;
 
 			DirectX::XMFLOAT3 m_emitterPos;
+			DirectX::XMFLOAT3 m_emitterDir;
 			float m_particlesToCreate;
 
 			std::vector<Particle> m_particles;
 
 			std::default_random_engine m_random;
+			std::uniform_real_distribution<float> m_dirCoordDist;
+			std::uniform_real_distribution<float> m_velDist;
 
 			DirectX::XMFLOAT3 RandomVelocity();
+			//DirectX::XMFLOAT3 RandomDirection();
 			Particle RandomParticle();
 			static void UpdateParticle(Particle& p, float dt);
 			std::vector<ParticleVertex> GetParticleVerts(DirectX::XMFLOAT4 cameraPosition);
